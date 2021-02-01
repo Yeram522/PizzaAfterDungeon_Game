@@ -9,7 +9,6 @@ static class Costants
     public const int TRACE = 1;
     public const int ATTACK = 2;
     public const int DIE = 3;
-    public const int ATTACK_STD = 4;
 }
 
 public class Monster
@@ -55,16 +54,18 @@ public class Monster
         float playerpos = player.transform.position.x;
         float monsterpose = me.transform.position.x;
         int flip_con=0;
-      
-        if (trace_trigger == false)
+
+        //player가 특정범위 안에 있으면 대기상태이고 없으면 추적한다.
+        if (cal_distance() < eyesight) //monster시야에 player가 들어오면
         {
-            //Debug.Log("outtrace");
+            condition = Costants.STD;
+            animator.SetBool("isFound", false); //달리는 모션 비활성
+            Attack(); //공격
             return;
         }
-        //player가 특정범위 안에 있으면 대기상태이고 없으면 추적한다.
 
 
-        if (monsterpose < playerpos)
+            if (monsterpose < playerpos)
         {
             flip_con = 1;
         }
@@ -110,7 +111,7 @@ public class boss_burgerking : Monster
     {
         //instance 초기화
         this.id = 13;
-        this.me = GameObject.Find("BurgerKing"); //오브젝트 할당
+        this.me = GameObject.Find("BurgerKing"); //오브젝트 할당 개체가 한개이므로 직접적으로 넣는다.
         this.animator = me.GetComponent<Animator>(); 
         this.rgd = this.me.GetComponent<Rigidbody2D>(); //rigidbody
         this.sRenderer = this.me.GetComponent<SpriteRenderer>();//Flip
@@ -140,10 +141,7 @@ public class boss_burgerking : Monster
                 Death();
                 //배열에서도 삭제되야함!! 아직 미구현
                 break;
-            case Costants.ATTACK_STD:
-                //필용없음 곧 지울거임
-                
-                break;
+           
         }
 
         
@@ -153,11 +151,19 @@ public class boss_burgerking : Monster
     {
         base.Std();
         //paze2. 이걸 구별하는 방법은. ent_pa_2가 true가 되면 바뀐다.
-        if (animator.GetBool("ent_pa_2") == true)
+        if (animator.GetBool("ent_pa_2") == true) //만약 paze2가 된다면,자동적으로 paze2 애니메이션 활성화
         {
-            animator.SetBool("isFound", false);
-            condition = 4;
-            animator.SetBool("isFound", true); //달리는 모션 활성화
+            //행동이 끝나면 std모션을 취한다.
+            condition = Costants.STD; //상태는 std로
+            if(cal_distance()>eyesight) //monster시야에 player가 안들어오면,
+            {
+                animator.SetBool("isFound", true); //달리는 모션 활성화
+                //Trace(); //추적활성화
+                condition = Costants.TRACE;
+                //switch문에서 Trace로 들어가게 될거임.
+            }
+           else //혹시몰라서 예외처리문
+                 animator.SetBool("isFound", false); //달리는 모션 비활성화
 
             return; //밑에 실행 안하고 빠져나가기, 스위치 문으로 바꿀예정.
         }
@@ -192,6 +198,10 @@ public class boss_burgerking : Monster
     public override void Attack()
     {
         base.Attack();
+        //먼저 공격
+        //25%확률로 다른스킬
+        //스킬사용후 병사버거3마리 소환
+        //공격후 범위 안에 없으면 다시 추적
     }
     //player가 일정 거리에 접근하면 true를 반환한다.
     public bool isAccess() 
@@ -212,7 +222,7 @@ public class normal_burgersoldier: Monster
     public normal_burgersoldier()
     {
         this.me = 
-            MonsterController.Instantiate(GameObject.Find("Burgersoldier"), MonsterController.spon_position(), me.transform.rotation);
+            MonsterController.Instantiate(MonsterController.Burgersoldier, MonsterController.spon_position(), me.transform.rotation);
         this.rgd = this.me.GetComponent<Rigidbody2D>(); //rigidbody
         this.sRenderer = this.me.GetComponent<SpriteRenderer>();//Flip
         this.hp = 100;
@@ -233,7 +243,7 @@ public class normal_burgersoldier: Monster
 //몬스터클래스의 메서드들을 사용한다.
 public class MonsterController : MonoBehaviour
 {  
-    public GameObject Burgerking, Burgersoldier;
+    public static GameObject Burgerking, Burgersoldier;
     public GameObject player;
     public Vector2 playerPos; //플레이어의 실시간 위치를 반영한다(update에서)
 
