@@ -5,10 +5,7 @@ using UnityEngine;
 static class Costants
 {
     public const float ACCESS = 0.5f;
-    public const int STD = 0;
-    public const int TRACE = 1;
-    public const int ATTACK = 2;
-    public const int DIE = 3;
+ 
 }
 
 //moster의 가능한 상태들을 정의한다 (각 상태는 대문자 문자열에 의해서 해시코드에 대응한다)
@@ -29,7 +26,6 @@ public class Monster : MonoBehaviour
 {
     MonsterController ms;
     public MONSTER_STATE CurrentState = MONSTER_STATE.IDLE;
-    //ThisAnimator = GetConponent<Animator>();
     public GameObject player = GameObject.FindGameObjectWithTag("Player");
     public int id;
     public Animator animator;
@@ -38,7 +34,6 @@ public class Monster : MonoBehaviour
     public SpriteRenderer sRenderer;
     public float hp;  //체력
     public float speed; //속도
-    public int condition; //0=std 1=trace 2=attack 3=die 4=attack_std
     public bool trace_trigger;
     public float eyesight;
     public float std_time = 0;
@@ -91,11 +86,35 @@ public class Monster : MonoBehaviour
     {
         yield return null;
     }
-    public virtual IEnumerator State_ATTACK()
+    public virtual IEnumerator State_Attack()
     {
 
         yield return null;
     }
+
+    public virtual IEnumerator State_Death()
+    {
+
+        yield return null;
+    }
+
+    //update함수에서 계속 체력을 받아야한다.
+    public void ChangeHealth(float Amount)
+    {
+        //체력을 감소시킨다
+        hp += Amount;
+
+        // 죽게되는가?
+        if(hp<=0)
+        {
+            //죽는 애니네이션 실행
+            animator.SetTrigger("isDeath");
+            StopAllCoroutines();
+            Destroy(me, 0.3f); //몇초 간격을 두고 Destroy
+            return;
+        }
+    }
+
     //player와 moster 사이의 거리를 float형식으로 반환한다.
     public float cal_distance()
     {
@@ -106,62 +125,6 @@ public class Monster : MonoBehaviour
         return Mathf.Abs(distance);
     }
 
-    public virtual void check_condition()
-    {
-        //몬스터마다 컨디션에 따른 행동 기준이 다르기 떄문에 재정의한다.
-    }
-
-    //플레이어의 방향에 따라 몬스터가 감지하고 쫓아간다.
-    /*public void Trace()
-    {
-        
-
-        //player가 특정범위 안에 있으면 대기상태이고 없으면 추적한다.
-        if (cal_distance() < eyesight) //monster시야에 player가 들어오면
-        {
-            this.condition = Costants.STD;
-            animator.SetBool("isFound", false); //달리는 모션 비활성
-            Attack(); //공격
-            return;
-        }
-
-
-        if (monsterpose < playerpos)
-        {
-            flip_con = 1;
-        }
-
-        else if (monsterpose > playerpos)
-        {
-            flip_con = -1;
-        }
-        else
-            flip_con = 0;
-
-        rgd.velocity = Vector2.zero;
-        rgd.velocity = new Vector2(flip_con * speed, rgd.velocity.y);
-    }*/
-
-    //자식class에서 재정의 가능하다.
-    public virtual void Attack()
-    {
-        if (condition != Costants.ATTACK)
-            return;
-        //공격에 따라서, 데미지주는 공격력등이 차이가 이씀
-    }
-
-    //대기상태 
-    public virtual void Std()
-    {
-    }
-
-    //몬스터의 개체를 삭제한다.
-    public void Death()
-    {
-        animator.SetBool("isDeath", true);//죽음 애니메이션 실행
-        this.condition = Costants.DIE;
-        MonsterController.Destroy(me, 0.3f); //몇초 간격을 두고 Destroy
-    }
 
     private void Start()
     {
@@ -193,7 +156,6 @@ public class boss_burgerking : Monster
         this.sRenderer = this.me.GetComponent<SpriteRenderer>();//Flip
         this.hp = 100;
         this.speed = 1.5f;
-        this.condition = Costants.STD; //초기는 std
         this.eyesight = 0.7f; //test하면서 바꾸기
     }
 
@@ -227,7 +189,8 @@ public class boss_burgerking : Monster
             ElapesedTime += Time.deltaTime;
 
             //Attackdelay가 초기값이0이라서 무조건 한번은 공격시작한다.
-            if(ElapesedTime >= AttackDelay)
+            //4,6,8 ㄷㅏ 생성하면 끝
+            if(ElapesedTime >= AttackDelay && count_spon<10)
             {
                 //타이머 재설정 및 AttackDelay 증가
                 ElapesedTime = 0f;
@@ -245,11 +208,15 @@ public class boss_burgerking : Monster
 
             //else if여야지 시간도달이 안되서 생성마법이 발동안한 틈에 공격할 수 있다.
             else if(animator.GetBool("isAtk_1")==false)
-            {
+            {              
                 animator.SetBool("isAtk_2", true);
                 //충격파 생성->충격파는 에셋이 따로 있나?
                 animator.SetBool("isAtk_2", false);
             }
+
+            //모든 버거병사를 죽였을 때
+            //Paze2로 넘어간다.
+            StartCoroutine(State_Patrol());
 
             yield return null;
             
@@ -323,7 +290,7 @@ public class boss_burgerking : Monster
                 //StartCoroutine(State_ATTACK());
                 if (cal_distance() < 2.0f)
                 {
-                    StartCoroutine(State_ATTACK());
+                    StartCoroutine(State_Attack());
                     yield break;
                 }
             }
@@ -333,12 +300,16 @@ public class boss_burgerking : Monster
 
     public override IEnumerator State_Patrol()
     {
+        if (animator.GetBool("ent_Pa_2") != true)
+            yield return null;
+
         CurrentState = MONSTER_STATE.PATROL;
         animator.SetBool("isAtk_3", false);
         animator.SetBool("isAtk_4", false);
         animator.SetBool("isFound", false);
         //patrol 상태는 쉬어가는거다..음..대기 상태로 만들기!!
-        while (CurrentState == MONSTER_STATE.CHASE)
+  
+        while (CurrentState == MONSTER_STATE.PATROL)
         {
             // 시간 초과 계산 지점
             float ElapsedTime = 0f;
@@ -350,7 +321,7 @@ public class boss_burgerking : Monster
                 //다음프레임까지 기다린다.
                 yield return null;
 
-                if (ElapsedTime >= ChaseTimeOut)
+                if (ElapsedTime >= std_time)
                 {
                     StartCoroutine(State_Chase());
                     yield break;
@@ -361,7 +332,7 @@ public class boss_burgerking : Monster
         yield return null;
     }
 
-    public override IEnumerator State_ATTACK()
+    public override IEnumerator State_Attack()
     {
         int ran = Random.Range(0, 101);
 
@@ -389,112 +360,15 @@ public class boss_burgerking : Monster
         {
             normal_burgersoldier.burger_solider.Add(new normal_burgersoldier());
         }
-        
-        
+
+        //공격을 마친후 대기상태로 돌아간다.
+        StartCoroutine(State_Patrol());
+
+
         yield return null;
     }
 
-
-
-
-
-
-
-
-
-
-
-    //계속 update함수에 있어야함.
-    public override void check_condition()
-    {
-        //base.check_condition();
-        switch (condition)
-        {
-            case Costants.STD:
-                Std(); //condition이 바뀌지 않는한 계속 이 함수가 실행될것임.
-                break;
-            case Costants.TRACE:
-                //paze2에서 필요
-                //Chase();
-                break;
-            case Costants.ATTACK:
-                Attack(); //세부 어택 미구현
-                break;
-            case Costants.DIE:
-                Death();
-                //배열에서도 삭제되야함!! 아직 미구현
-                break;
-
-        }
-
-
-    }
-
-    public override void Std()
-    {
-        base.Std();
-        //paze2. 이걸 구별하는 방법은. ent_pa_2가 true가 되면 바뀐다.
-        if (animator.GetBool("ent_pa_2") == true) //만약 paze2가 된다면,자동적으로 paze2 애니메이션 활성화
-        {
-            //행동이 끝나면 std모션을 취한다.
-            condition = Costants.STD; //상태는 std로
-            if (cal_distance() > eyesight) //monster시야에 player가 안들어오면,
-            {
-                animator.SetBool("isFound", true); //달리는 모션 활성화
-                //Trace(); //추적활성화
-                condition = Costants.TRACE;
-                //switch문에서 Trace로 들어가게 될거임.
-            }
-            else //혹시몰라서 예외처리문
-                animator.SetBool("isFound", false); //달리는 모션 비활성화
-
-            return; //밑에 실행 안하고 빠져나가기, 스위치 문으로 바꿀예정.
-        }
-
-        //paze1 std 랑 paze2 std가 다르다.
-        //가만히 있다가 일정시간 움직인다.
-        //paze1에서는 일정시간마다 마법봉으로 버거 소환함
-
-        if (isAccess() != true)
-        {
-
-            return;
-        }
-
-        //** 아래 작업은 함수로 만들기..반드시@@
-        //countdown으로 설정된 time값이 0이 될때마다 실행한다. 실행된후 타임을 다시 셋팅
-
-        if (Mathf.Round(std_time) <= 0)
-        {
-
-            for (int i = 0; i < count_spon; i++)
-            {
-                animator.SetBool("isAtk_2", true);//접근된것이 확인되면, 마법봉으로 내려치고 병사를 소환한다.
-                MonsterController.monsters.Add(new normal_burgersoldier()); //옵젝생성
-                animator.SetBool("isAtk_2", false);//다시 false로 바꾸여 대기상태로 전환!!
-            }
-            std_time += 10; //총3번소환하는데 갈수롥 버거가 많아지므로 시간간격 늘이기?
-            count_spon += 2; //다음 시간대 오면 8,10으로 소환!
-
-        }
-
-        std_time -= Time.deltaTime;
-    }
-
-    public override void Attack()
-    {
-        base.Attack();
-        //paze1일때
-        //버거병사가 소환되어있는 동안 지면을 내리치는 모션으로 충격파 발생하여 공격한다.
-        //버거병사의 condition이 모두 death()가 될때 동안 일정시간 간격으로 공격을 진행한다.
-
-        //paze2일때
-        //먼저 공격
-        //25%확률로 다른스킬
-        //스킬사용후 병사버거3마리 소환
-        //공격후 범위 안에 없으면 다시 추적
-    }
-    //player가 일정 거리에 접근하면 true를 반환한다.
+   
     public bool isAccess()
     {
         if (Costants.ACCESS < cal_distance()) //값은 테스트하면서 변경하기
@@ -505,10 +379,13 @@ public class boss_burgerking : Monster
         return true;
     }
 
+    //update objects' state
+    private void Update()
+    {
+        //damage==null이면 실행ㄴㄴ null이 아니면 changeHealth(damage);
+    }
+
 }
-
-
-
 
 
 public class normal_burgersoldier : Monster
@@ -527,11 +404,11 @@ public class normal_burgersoldier : Monster
 
     }
     //충돌시 데미지 플레이어와 일정거리 가까어졌을 때 내리치는 모션
-    public override void Attack()
+    /*public override void Attack()
     {
         //가시거리 안에 들면 내리치는 모션을 한다.
         if (cal_distance() < eyesight)
             return; // 내리치는 모션, 충돌감지되면 player는 데미지입음
-    }
+    }*/
 
 }
