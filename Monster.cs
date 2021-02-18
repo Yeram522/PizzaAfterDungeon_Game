@@ -26,7 +26,7 @@ public enum MONSTER_STATE
 public class Monster : MonoBehaviour
 {
     public MONSTER_STATE CurrentState = MONSTER_STATE.IDLE;
-    public GameObject player;
+    public static GameObject player;
     public int id;
     public Animator animator;
     public GameObject me;
@@ -41,6 +41,10 @@ public class Monster : MonoBehaviour
     public float AttackDelay = 0f;
     public bool onDeath = false;
 
+    public void Awake()
+    {
+        player = GameObject.Find("Player_Body");
+    }
     public static Vector2 spon_position()
     {
         Vector2 rand_pos;
@@ -74,11 +78,13 @@ public class Monster : MonoBehaviour
             if (monsterpose < playerpos)
             {
                 flip_con = 1;
+         
             }
 
             else if (monsterpose > playerpos)
             {
                 flip_con = -1;
+
             }
             else
                 flip_con = 0;
@@ -113,7 +119,7 @@ public class Monster : MonoBehaviour
 
         yield return null;
     }
-
+   
     //update함수에서 계속 체력을 받아야한다.
     public void ChangeHealth(float Amount)
     {
@@ -132,13 +138,13 @@ public class Monster : MonoBehaviour
     }
 
     //player와 moster 사이의 거리를 float형식으로 반환한다.
-    public float cal_distance()
+    public  float cal_distance()
     {
         float playerpos = player.transform.position.x; //참조
         float monsterpose = me.transform.position.x;
 
         float distance = playerpos - monsterpose;
-        //Debug.Log("cal_distance:" + Mathf.Abs(distance));
+      //  Debug.Log("cal_distance:" + Mathf.Abs(distance));
 
         return Mathf.Abs(distance);
         

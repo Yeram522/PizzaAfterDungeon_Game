@@ -4,12 +4,13 @@ using UnityEngine;
 
 public class boss_BurgerKing : Monster
 {
-    public new float ChaseTimeOut = 5.0f;//하이딩
-    public new float AttackDelay = 0f;//하이딩
-    public new float std_time = 3.0f; //하이딩
+    public GameObject Burgersoldier;
+    private new float ChaseTimeOut = 5.0f;//하이딩
+    private new float AttackDelay = 0f;//하이딩
+    private new float std_time = 3.0f; //하이딩
     private int count_spon = 4; //미니 버거 소환하는 수 ++2 증감식으로 늘림/보호
 
-    private void Awake()
+    private new void Awake()
     {
         //instance 초기화
         this.id = 13;
@@ -23,6 +24,7 @@ public class boss_BurgerKing : Monster
         StartCoroutine(State_Idle());
         Debug.Log("초기화 완료:burgerking");
     }
+
     public bool isAccess()
     {
         if (Costants.ACCESS < cal_distance()) //값은 테스트하면서 변경하기
@@ -34,6 +36,8 @@ public class boss_BurgerKing : Monster
         //paze1이기 때문에 컨디션은 그대로.
         return true;
     }
+
+  
 
     //boss 한정 paze1 state
     //버거병사가 다 죽고 paze2로 넘어가는 것 아직 미구현.
@@ -50,6 +54,7 @@ public class boss_BurgerKing : Monster
         //idle  상태에 있는 동안 무한히 반복한다.
         while (CurrentState == MONSTER_STATE.IDLE)
         {
+           // Debug.Log("Corutin: IDLE enter");
             //접근할때까지 아무것도 실행되지 않는다.
             if (isAccess() == true)
             {
@@ -153,16 +158,16 @@ public class boss_BurgerKing : Monster
         while (CurrentState == MONSTER_STATE.PATROL)
         {
             // 시간 초과 계산 지점
-            float ElapsedTime = 0f;
+            float ElapsedTime_2 = 0f;
             while (true)
             {
                 //시간을 증가시킨다
-                ElapsedTime += Time.deltaTime;
+                ElapsedTime_2 += Time.deltaTime;
 
                 //다음프레임까지 기다린다.
                 yield return null;
 
-                if (ElapsedTime >= std_time)
+                if (ElapsedTime_2 >= std_time)
                 {
                     StartCoroutine(State_Chase());
                     yield break;
@@ -176,45 +181,52 @@ public class boss_BurgerKing : Monster
     public IEnumerator State_Attack0()
     {
         CurrentState = MONSTER_STATE.ATTACK;
+
         Debug.Log("Corutin: Attack0 enter");
         //대사UI생성후
         //버튼이 눌려지고 창이 닫히면, 아래 while문이 실행된다.
         //공격주기를 정하는 타이머를 설정한다.
-        float ElapesedTime = 0f;
+        float ElapesedTime_1 = 0f;
 
         //ATTACK  상태에 있는 동안 무한히 반복한다.
         while (CurrentState == MONSTER_STATE.ATTACK)
         {
             //타이머를 업데이트 한다.
-            ElapesedTime += Time.deltaTime;
+            ElapesedTime_1 += Time.deltaTime;
 
             //Attackdelay가 초기값이0이라서 무조건 한번은 공격시작한다.
             //4,6,8 ㄷㅏ 생성하면 끝
-            if (ElapesedTime >= AttackDelay && count_spon < 10)
+            if (ElapesedTime_1 >= AttackDelay && count_spon < 10)
             {
                 //타이머 재설정 및 AttackDelay 증가
-                ElapesedTime = 0f;
+                ElapesedTime_1 = 0f;
                 AttackDelay += 30f;
 
                 //공격을 한다.
                 for (int i = 0; i < count_spon; i++)
                 {
                     animator.SetBool("isAtk_1", true);//접근된것이 확인되면, 마법봉으로 내려치고 병사를 소환한다.
-                    new GameObject();
-                    var bursol = new GameObject().AddComponent<normal_burgersoldier>();
-                    bursol.name = "burger_soldier";
-                    animator.SetBool("isAtk_1", false);//다시 false로 바꾸여 대기상태로 전환!!
+                    yield return null;
+                    var norbur = Instantiate(Burgersoldier, new Vector2(68.13f, -61.85f), me.transform.rotation);
+                    norbur.AddComponent<normal_burgersoldier>();//오브젝트에 스크립트 추가
+                   
                 }
+                
                 count_spon += 2; //다음 시간대 오면 8,10으로 소환!
             }
 
-            //else if여야지 시간도달이 안되서 생성마법이 발동안한 틈에 공격할 수 있다.
-            else if (animator.GetBool("isAtk_1") == false)
+            else if(animator.GetBool("isAtk_1") == true)
             {
-                animator.SetBool("isAtk_2", true);
-                //충격파 생성->충격파는 에셋이 따로 있나?
-                animator.SetBool("isAtk_2", false);
+                animator.SetBool("isAtk_1", false);
             }
+
+            //else if여야지 시간도달이 안되서 생성마법이 발동안한 틈에 공격할 수 있다.
+            //else if (animator.GetBool("isAtk_1") == false)
+            //{
+            //    animator.SetBool("isAtk_2", true);
+            //    //충격파 생성->충격파는 에셋이 따로 있나?
+            //    animator.SetBool("isAtk_2", false);
+            //}
 
             //모든 버거병사를 죽였을 때
             //Paze2로 넘어간다.
@@ -252,7 +264,8 @@ public class boss_BurgerKing : Monster
         //스킬사용 후 버거병사 3마리 소환!!new burger~
         for (int i = 0; i < 3; i++)
         {
-            new normal_burgersoldier();
+            var norbur = Instantiate(Burgersoldier, new Vector2(68.13f, -61.85f), me.transform.rotation);
+            norbur.AddComponent<normal_burgersoldier>();//오브젝트에 스크립트 추가
         }
 
         //공격을 마친후 대기상태로 돌아간다.
@@ -262,11 +275,14 @@ public class boss_BurgerKing : Monster
         yield return null;
     }
 
-  
+
 
     //update objects' state
+
     private void Update()
     {
         //damage==null이면 실행ㄴㄴ null이 아니면 changeHealth(damage);
+
+
     }
 }
